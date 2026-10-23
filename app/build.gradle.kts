@@ -16,7 +16,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags += "-O3 -DNDEBUG"
+                cppFlags += "-std=c++17 -O3 -DNDEBUG"
                 arguments += "-DLLAMA_BUILD_TESTS=OFF"
                 arguments += "-DLLAMA_BUILD_EXAMPLES=OFF"
                 arguments += "-DLLAMA_CURL=OFF"
