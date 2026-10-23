@@ -18,12 +18,12 @@ fun FilesScreen() {
     ) {
         Text("قاعدة المعرفة (RAG)", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
-        Text("لم يتم إضافة ملفات بعد.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("لم يتم إضافة ملفات بعد.")
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { /* إضافة ملف */ }) {
-            Icon(Icons.Default.Add, contentDescription = null)
+        Button(onClick = { }) {
+            Icon(Icons.Default.Add, contentDescription = "Add")
             Spacer(modifier = Modifier.width(8.dp))
-            Text("إضافة ملف PDF/نص")
+            Text("إضافة ملف")
         }
     }
 }
