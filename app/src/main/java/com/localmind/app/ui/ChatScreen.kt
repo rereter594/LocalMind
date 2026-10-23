@@ -12,13 +12,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.localmind.app.LlmEngine
 
 data class ChatMessage(val text: String, val isUser: Boolean)
 
 @Composable
 fun ChatScreen() {
+    // نجرب ننده الجسر C++ أول ما الشاشة تفتح
+    val initialMessage = remember { LlmEngine.getHelloFromJni() }
+    
     var messages by remember { 
-        mutableStateOf(listOf(ChatMessage("مرحباً! أنا LocalMind. كيف أساعدك؟", false))) 
+        mutableStateOf(listOf(ChatMessage(initialMessage, false))) 
     }
     var inputText by remember { mutableStateOf("") }
 
@@ -44,7 +48,7 @@ fun ChatScreen() {
                     value = inputText,
                     onValueChange = { inputText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("اكتب رسالتك...") },
+                    placeholder = { Text("جرب ترسل رسالة...") },
                     shape = RoundedCornerShape(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -52,6 +56,7 @@ fun ChatScreen() {
                     onClick = {
                         if (inputText.isNotBlank()) {
                             messages = messages + ChatMessage(inputText, true)
+                            messages = messages + ChatMessage("الذكاء الاصطناعي هيتم ربطه في الخطوة الجاية (لسه C++ بس).", false)
                             inputText = ""
                         }
                     },

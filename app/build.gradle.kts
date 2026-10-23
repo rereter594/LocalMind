@@ -13,6 +13,17 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-O3 -DNDEBUG"
+                arguments += "-DLLAMA_BUILD_TESTS=OFF"
+                arguments += "-DLLAMA_BUILD_EXAMPLES=OFF"
+            }
+        }
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
     }
 
     buildTypes {
@@ -32,6 +43,12 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.10"
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 }
 
