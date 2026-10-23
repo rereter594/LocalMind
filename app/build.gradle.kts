@@ -19,6 +19,7 @@ android {
                 cppFlags += "-O3 -DNDEBUG"
                 arguments += "-DLLAMA_BUILD_TESTS=OFF"
                 arguments += "-DLLAMA_BUILD_EXAMPLES=OFF"
+                arguments += "-DLLAMA_CURL=OFF"
             }
         }
         ndk {

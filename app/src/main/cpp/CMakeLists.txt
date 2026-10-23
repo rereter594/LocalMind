@@ -1,20 +1,30 @@
 cmake_minimum_required(VERSION 3.22.1)
 project("localmind")
 
-# مسار كود llama.cpp
-set(LLAMA_DIR ${CMAKE_SOURCE_DIR}/../../../../../llama.cpp)
+# المسار الصح: الصعود 4 مستويات للوصول لجذر المشروع
+get_filename_component(LLAMA_DIR "${CMAKE_SOURCE_DIR}/../../../../llama.cpp" ABSOLUTE)
 
-# إضافة مجلدات الرأس (Headers)
+if(NOT EXISTS ${LLAMA_DIR})
+    message(FATAL_ERROR "llama.cpp not found at ${LLAMA_DIR}")
+endif()
+
 include_directories(${LLAMA_DIR})
 include_directories(${LLAMA_DIR}/ggml/include)
+include_directories(${LLAMA_DIR}/include)
+include_directories(${LLAMA_DIR}/common)
 
-# تجميع مكتبة الجسر (JNI)
+# إنشاء مكتبة الجسر
 add_library(localmind SHARED llama_bridge.cpp)
 
-# ربط مكتبة llama_common و ggml
 find_library(log-lib log)
 target_link_libraries(localmind ${log-lib} android)
 
-# تضمين كود llama.cpp مباشرة (لأننا سنستخدم CMake الخاص به)
+# تعطيل أدوات llama.cpp غير الضرورية لتسريع البناء
+set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LLAMA_CURL OFF CACHE BOOL "" FORCE)
+
 add_subdirectory(${LLAMA_DIR} ${CMAKE_BINARY_DIR}/llama.cpp)
+
+# ربط مكتبة الجسر بمكتبات llama.cpp
 target_link_libraries(localmind llama ggml)
