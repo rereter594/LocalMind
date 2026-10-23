@@ -6,4 +6,5 @@ object LlmEngine {
     }
 
     external fun getHelloFromJni(): String
+    external fun loadModel(path: String): Boolean
 }
