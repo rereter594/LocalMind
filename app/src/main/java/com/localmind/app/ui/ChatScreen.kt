@@ -22,7 +22,7 @@ data class ChatMessage(val text: String, val isUser: Boolean)
 @Composable
 fun ChatScreen() {
     var messages by remember { 
-        mutableStateOf(listOf(ChatMessage("مرحباً! أنا جاهز للدردشة الآن.", false))) 
+        mutableStateOf(listOf(ChatMessage("مرحباً! أنا LocalMind. جاهز للدردشة معك.", false))) 
     }
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -67,12 +67,28 @@ fun ChatScreen() {
                             inputText = ""
                             isLoading = true
                             
-                            // استدعاء الذكاء الاصطناعي في الخلفية
+                            // تجهيز "البرومبت" الكامل مع تاريخ المحادثة
+                            val promptBuilder = StringBuilder()
+                            // تعليمات النظام (عشان يرد بالعربي ويركز)
+                            promptBuilder.append("<|im_start|>system\nأنت مساعد ذكي ومفيد اسمك LocalMind. أجب بالعربية بوضوح وإيجاز.<|im_end|>\n")
+                            
+                            // إضافة كل الرسائل السابقة
+                            for (msg in messages) {
+                                if (msg.isUser) {
+                                    promptBuilder.append("<|im_start|>user\n${msg.text}<|im_end|>\n")
+                                } else {
+                                    promptBuilder.append("<|im_start|>assistant\n${msg.text}<|im_end|>\n")
+                                }
+                            }
+                            // فتح دور المساعد عشان يبدأ يكتب
+                            promptBuilder.append("<|im_start|>assistant\n")
+
                             scope.launch {
                                 val reply = withContext(Dispatchers.IO) {
-                                    LlmEngine.generate(userMsg)
+                                    LlmEngine.generate(promptBuilder.toString())
                                 }
-                                messages = messages + ChatMessage(reply, false)
+                                val finalReply = if (reply.isBlank()) "عذراً، لم أفهم. هل يمكنك إعادة الصياغة؟" else reply
+                                messages = messages + ChatMessage(finalReply, false)
                                 isLoading = false
                             }
                         }
