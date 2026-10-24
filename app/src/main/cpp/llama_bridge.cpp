@@ -19,7 +19,7 @@ Java_com_localmind_app_LlmEngine_getHelloFromJni(JNIEnv* env, jobject) {
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_localmind_app_LlmEngine_loadModel(JNIEnv* env, jobject, jstring model_path) {
     if (g_model) {
-        llama_free_model(g_model);
+        llama_model_free(g_model); // استخدام الدالة الحديثة
         if (g_ctx) llama_free(g_ctx);
         g_model = nullptr;
         g_ctx = nullptr;
@@ -30,7 +30,7 @@ Java_com_localmind_app_LlmEngine_loadModel(JNIEnv* env, jobject, jstring model_p
     llama_model_params params = llama_model_default_params();
     params.n_gpu_layers = 0;
     
-    g_model = llama_load_model_from_file(path, params);
+    g_model = llama_model_load_from_file(path, params); // الدالة الحديثة
     env->ReleaseStringUTFChars(model_path, path);
 
     if (!g_model) return JNI_FALSE;
@@ -48,38 +48,39 @@ Java_com_localmind_app_LlmEngine_generate(JNIEnv* env, jobject, jstring prompt) 
     if (!g_model || !g_ctx) return env->NewStringUTF("الموديل غير محمل.");
 
     const char* prompt_str = env->GetStringUTFChars(prompt, 0);
-    
-    // تنسيق رسالة Qwen (ChatML format)
     std::string formatted_prompt = "<|im_start|>user\n" + std::string(prompt_str) + "<|im_end|>\n<|im_start|>assistant\n";
     env->ReleaseStringUTFChars(prompt, prompt_str);
 
-    // تحويل النص إلى توكنز
     std::vector<llama_token> tokens_list;
     tokens_list.resize(formatted_prompt.length() + 2);
     int n_tokens = llama_tokenize(g_model, formatted_prompt.c_str(), formatted_prompt.length(), tokens_list.data(), tokens_list.size(), true, true);
     tokens_list.resize(n_tokens);
 
-    // إدخال النص للموديل
+    // بناء الـ Batch يدوياً (للتوافق مع الإصدار القديم)
     llama_batch batch = llama_batch_init(n_tokens, 0, 1);
     for (int i = 0; i < n_tokens; i++) {
-        llama_batch_add(batch, tokens_list[i], i, {0}, false);
+        batch.token[i] = tokens_list[i];
+        batch.pos[i] = i;
+        batch.n_seq_id[i] = 1;
+        batch.seq_id[i][0] = 0;
+        batch.logits[i] = false;
     }
+    batch.logits[n_tokens - 1] = true; // نحتاج الـ logits فقط لآخر توكن
+    batch.n_tokens = n_tokens;
+
     llama_decode(g_ctx, batch);
     llama_batch_free(batch);
 
-    // توليد الرد
     std::string response = "";
     const int n_predict = 256;
     int n_cur = n_tokens;
 
     llama_batch single_batch = llama_batch_init(1, 0, 1);
-    
+
     for (int i = 0; i < n_predict; i++) {
-        // اختيار التوكن التالي
         auto* logits = llama_get_logits_ith(g_ctx, -1);
         int n_vocab = llama_n_vocab(g_model);
         
-        // اختيار بسيط (Greedy Sampling)
         int max_index = 0;
         float max_logit = logits[0];
         for (int j = 1; j < n_vocab; j++) {
@@ -89,7 +90,7 @@ Java_com_localmind_app_LlmEngine_generate(JNIEnv* env, jobject, jstring prompt) 
             }
         }
 
-        if (max_index == llama_token_eos(g_model) || max_index == 151645) break; // نهاية النص
+        if (max_index == llama_token_eos(g_model) || max_index == 151645) break; // 151645 هو EOS الخاص بـ Qwen
 
         char buf[128];
         int length = llama_token_to_piece(g_model, max_index, buf, sizeof(buf), 0, true);
@@ -97,9 +98,15 @@ Java_com_localmind_app_LlmEngine_generate(JNIEnv* env, jobject, jstring prompt) 
             response += std::string(buf, length);
         }
 
-        llama_batch_add(single_batch, max_index, n_cur++, {0}, true);
+        // بناء Batch لتوكن واحد
+        single_batch.token[0] = max_index;
+        single_batch.pos[0] = n_cur++;
+        single_batch.n_seq_id[0] = 1;
+        single_batch.seq_id[0][0] = 0;
+        single_batch.logits[0] = true;
+        single_batch.n_tokens = 1;
+
         llama_decode(g_ctx, single_batch);
-        single_batch.n_tokens = 0;
     }
 
     llama_batch_free(single_batch);
