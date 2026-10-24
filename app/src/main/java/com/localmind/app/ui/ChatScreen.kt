@@ -13,18 +13,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.localmind.app.LlmEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ChatMessage(val text: String, val isUser: Boolean)
 
 @Composable
 fun ChatScreen() {
-    // نجرب ننده الجسر C++ أول ما الشاشة تفتح
-    val initialMessage = remember { LlmEngine.getHelloFromJni() }
-    
     var messages by remember { 
-        mutableStateOf(listOf(ChatMessage(initialMessage, false))) 
+        mutableStateOf(listOf(ChatMessage("مرحباً! أنا جاهز للدردشة الآن.", false))) 
     }
     var inputText by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -33,6 +35,10 @@ fun ChatScreen() {
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
             items(messages) { message -> ChatBubble(message) }
+        }
+
+        if (isLoading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
         Surface(
@@ -48,19 +54,33 @@ fun ChatScreen() {
                     value = inputText,
                     onValueChange = { inputText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("جرب ترسل رسالة...") },
-                    shape = RoundedCornerShape(24.dp)
+                    placeholder = { Text("اكتب رسالتك هنا...") },
+                    shape = RoundedCornerShape(24.dp),
+                    enabled = !isLoading
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = {
-                        if (inputText.isNotBlank()) {
-                            messages = messages + ChatMessage(inputText, true)
-                            messages = messages + ChatMessage("الذكاء الاصطناعي هيتم ربطه في الخطوة الجاية (لسه C++ بس).", false)
+                        if (inputText.isNotBlank() && !isLoading) {
+                            val userMsg = inputText
+                            messages = messages + ChatMessage(userMsg, true)
                             inputText = ""
+                            isLoading = true
+                            
+                            // استدعاء الذكاء الاصطناعي في الخلفية
+                            scope.launch {
+                                val reply = withContext(Dispatchers.IO) {
+                                    LlmEngine.generate(userMsg)
+                                }
+                                messages = messages + ChatMessage(reply, false)
+                                isLoading = false
+                            }
                         }
                     },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
+                    modifier = Modifier.background(
+                        if (isLoading) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary, 
+                        RoundedCornerShape(50)
+                    )
                 ) {
                     Icon(Icons.Default.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.onPrimary)
                 }
@@ -77,7 +97,7 @@ fun ChatBubble(message: ChatMessage) {
     val shape = if (message.isUser) RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp) else RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
 
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
-        Surface(color = color, shape = shape, modifier = Modifier.widthIn(max = 280.dp)) {
+        Surface(color = color, shape = shape, modifier = Modifier.widthIn(max = 300.dp)) {
             Text(text = message.text, modifier = Modifier.padding(12.dp), color = textColor)
         }
     }
